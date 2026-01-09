@@ -9,12 +9,12 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID  `json:"id"`
-	Username     *string    `json:"username,omitempty"`
-	Email        *string    `json:"email,omitempty"`
-	PasswordHash string     `json:"-"`
-	CreatedAt    time.Time  `json:"createdAt"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
+	ID           uuid.UUID `json:"id"`
+	Username     *string   `json:"username,omitempty"`
+	Email        *string   `json:"email,omitempty"`
+	PasswordHash string    `json:"-"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 
 	IsTechnicalUser bool    `json:"isTechnicalUser"` // For future API key support
 	APIKeyHash      *string `json:"-"`
@@ -32,12 +32,12 @@ type LoginRequest struct {
 }
 
 type UserResponse struct {
-	ID              uuid.UUID  `json:"id"`
-	Username        *string    `json:"username,omitempty"`
-	Email           *string    `json:"email,omitempty"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
-	IsTechnicalUser bool       `json:"isTechnicalUser"`
+	ID              uuid.UUID `json:"id"`
+	Username        *string   `json:"username,omitempty"`
+	Email           *string   `json:"email,omitempty"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+	IsTechnicalUser bool      `json:"isTechnicalUser"`
 }
 
 type ErrorResponse struct {
@@ -119,15 +119,15 @@ type BasicAuthSettings struct {
 
 func DefaultSettings() *BasicAuthSettings {
 	return &BasicAuthSettings{
-		EnableUsernameLogin:  true,
-		EnableEmailLogin:     true,
-		SessionName:          "basicauth_session",
-		SessionExpiration:    24 * time.Hour,
-		CookieSecure:         true,
-		CookieHttpOnly:       true,
-		CookieSameSite:       http.SameSiteLaxMode,
-		CookiePath:           "/",
-		CookieDomain:         "",
+		EnableUsernameLogin: true,
+		EnableEmailLogin:    true,
+		SessionName:         "basicauth_session",
+		SessionExpiration:   24 * time.Hour,
+		CookieSecure:        true,
+		CookieHttpOnly:      true,
+		CookieSameSite:      http.SameSiteLaxMode,
+		CookiePath:          "/",
+		CookieDomain:        "",
 		PasswordRequirements: PasswordRequirements{
 			MinLength:        8,
 			RequireUppercase: true,
@@ -150,15 +150,15 @@ func DefaultSettings() *BasicAuthSettings {
 }
 
 var (
-	ErrInvalidCredentials    = errors.New("invalid credentials")
-	ErrUserAlreadyExists     = errors.New("user already exists")
-	ErrUserNotFound          = errors.New("user not found")
-	ErrInvalidEmail          = errors.New("invalid email format")
-	ErrInvalidUsername       = errors.New("invalid username format")
-	ErrPasswordTooWeak       = errors.New("password does not meet requirements")
-	ErrSessionNotFound       = errors.New("session not found")
-	ErrUnauthorized          = errors.New("unauthorized")
-	ErrInternalServer        = errors.New("internal server error")
-	ErrMissingCredentials    = errors.New("username or email required")
-	ErrRegistrationDisabled  = errors.New("registration method not enabled")
+	ErrInvalidCredentials   = errors.New("invalid credentials")
+	ErrUserAlreadyExists    = errors.New("user already exists")
+	ErrUserNotFound         = errors.New("user not found")
+	ErrInvalidEmail         = errors.New("invalid email format")
+	ErrInvalidUsername      = errors.New("invalid username format")
+	ErrPasswordTooWeak      = errors.New("password does not meet requirements")
+	ErrSessionNotFound      = errors.New("session not found")
+	ErrUnauthorized         = errors.New("unauthorized")
+	ErrInternalServer       = errors.New("internal server error")
+	ErrMissingCredentials   = errors.New("username or email required")
+	ErrRegistrationDisabled = errors.New("registration method not enabled")
 )

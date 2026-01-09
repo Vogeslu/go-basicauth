@@ -56,10 +56,10 @@ func TestRequireAuth_PublicPathExact(t *testing.T) {
 	})
 
 	tests := []struct {
-		path           string
-		expectStatus   int
-		expectPublic   bool
-		description    string
+		path         string
+		expectStatus int
+		expectPublic bool
+		description  string
 	}{
 		{"/public", 200, true, "exact match should allow access"},
 		{"/public/nested", 401, false, "exact match should not match nested path"},
