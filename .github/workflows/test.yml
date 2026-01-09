@@ -55,10 +55,3 @@ jobs:
 
     - name: Run tests
       run: go test ./... -v -race -coverprofile=coverage.out -covermode=atomic
-
-    - name: Upload coverage
-      if: matrix.go-version == '1.25'
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./coverage.out
-        flags: unittests
