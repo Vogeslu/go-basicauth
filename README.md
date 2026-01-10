@@ -143,6 +143,52 @@ settings.PathRules = []basicauth.PathRule{
 **Backward compatibility:**
 The old `PublicPaths` field still works and is treated as public rules. Use `PathRules` for the new precedence-based system.
 
+## User Context Provider
+
+The `UserContextProvider` interface allows your application to receive authenticated user information and set up custom context after successful authentication. This is useful for enriching user data from your database or setting up application-specific context.
+
+```go
+type UserContextProvider interface {
+    SetUserContext(c *gin.Context, user *User)
+}
+```
+
+**When it's called:**
+- After successful login
+- After successful registration
+- In the `RequireAuth` middleware after session validation
+
+**Example implementation:**
+
+```go
+type MyContextProvider struct {
+    DB *sql.DB
+}
+
+func (p *MyContextProvider) SetUserContext(c *gin.Context, user *basicauth.User) {
+    // Enrich with additional data from your database
+    var role string
+    p.DB.QueryRow("SELECT role FROM users WHERE id = $1", user.ID).Scan(&role)
+
+    // Set up your application context
+    c.Set("userRole", role)
+    c.Set("userID", user.ID.String())
+}
+```
+
+**Wiring it up:**
+
+```go
+handler, _ := basicauth.NewHandler(&basicauth.Options{
+    Engine:              r,
+    Storage:             storage,
+    Settings:            settings,
+    UserContextProvider: &MyContextProvider{DB: db},
+})
+```
+
+The provider is optional. If not set, the library works as before (backward compatible).
+
 ## Security
 
 Sessions are signed with a 64-byte key and encrypted with a 32-byte key using gorilla/sessions. Generate these keys with:
