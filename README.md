@@ -143,51 +143,80 @@ settings.PathRules = []basicauth.PathRule{
 **Backward compatibility:**
 The old `PublicPaths` field still works and is treated as public rules. Use `PathRules` for the new precedence-based system.
 
-## User Context Provider
+## User Context
 
-The `UserContextProvider` interface allows your application to receive authenticated user information and set up custom context after successful authentication. This is useful for enriching user data from your database or setting up application-specific context.
+Store authenticated users in Go's standard `context.Context` for easy access in handlers. This uses the idiomatic Go context pattern.
+
+### Basic Usage
+
+Define a context key and configure the handler:
 
 ```go
-type UserContextProvider interface {
-    SetUserContext(c *gin.Context, user *User)
+// Define a context key (use a custom type to avoid collisions)
+type userContextKey struct{}
+var UserKey = userContextKey{}
+
+// Configure the handler
+handler, _ := basicauth.NewHandler(&basicauth.Options{
+    Engine:   r,
+    Storage:  storage,
+    Settings: settings,
+    UserKey:  UserKey,  // User will be stored under this key
+})
+```
+
+Access the user in handlers:
+
+```go
+r.GET("/profile", handler.RequireAuth(), func(c *gin.Context) {
+    user := c.Request.Context().Value(UserKey).(*basicauth.User)
+    c.JSON(200, gin.H{"username": user.Username})
+})
+```
+
+### Custom User Transformation
+
+Use `UserTransformer` to convert `basicauth.User` to your application's user type before storing:
+
+```go
+handler, _ := basicauth.NewHandler(&basicauth.Options{
+    Engine:   r,
+    Storage:  storage,
+    Settings: settings,
+    UserKey:  UserKey,
+    UserTransformer: func(c *gin.Context, user *basicauth.User) any {
+        // Fetch full user from your database
+        dbUser, _ := db.GetUserByID(user.ID)
+        return dbUser  // Store your custom type instead
+    },
+})
+```
+
+### Type-Safe Access Helper
+
+Create a helper function for type-safe user access:
+
+```go
+func GetUser(ctx context.Context) *MyUser {
+    if user, ok := ctx.Value(UserKey).(*MyUser); ok {
+        return user
+    }
+    return nil
+}
+
+// Usage in handlers
+func profileHandler(c *gin.Context) {
+    user := GetUser(c.Request.Context())
+    // ...
 }
 ```
 
-**When it's called:**
+**When context is set:**
 - After successful login
 - After successful registration
 - In the `RequireAuth` middleware after session validation
 
-**Example implementation:**
-
-```go
-type MyContextProvider struct {
-    DB *sql.DB
-}
-
-func (p *MyContextProvider) SetUserContext(c *gin.Context, user *basicauth.User) {
-    // Enrich with additional data from your database
-    var role string
-    p.DB.QueryRow("SELECT role FROM users WHERE id = $1", user.ID).Scan(&role)
-
-    // Set up your application context
-    c.Set("userRole", role)
-    c.Set("userID", user.ID.String())
-}
-```
-
-**Wiring it up:**
-
-```go
-handler, _ := basicauth.NewHandler(&basicauth.Options{
-    Engine:              r,
-    Storage:             storage,
-    Settings:            settings,
-    UserContextProvider: &MyContextProvider{DB: db},
-})
-```
-
-The provider is optional. If not set, the library works as before (backward compatible).
+If `UserKey` is nil, no user is stored in context (backward compatible).
 
 ## Security
 

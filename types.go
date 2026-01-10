@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
@@ -19,15 +18,6 @@ type User struct {
 
 	IsTechnicalUser bool    `json:"isTechnicalUser"` // For future API key support
 	APIKeyHash      *string `json:"-"`
-}
-
-// UserContextProvider is implemented by applications to receive
-// authenticated user information and set up their own context.
-type UserContextProvider interface {
-	// SetUserContext is called after successful authentication.
-	// The application should store the user info in gin.Context
-	// for later retrieval in handlers.
-	SetUserContext(c *gin.Context, user *User)
 }
 
 type RegisterRequest struct {

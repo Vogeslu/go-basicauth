@@ -1,6 +1,7 @@
 package basicauth
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -16,7 +17,15 @@ type Options struct {
 	AuthenticationBaseUrl string
 	Storage               Storage
 	Settings              *BasicAuthSettings
-	UserContextProvider   UserContextProvider // Optional, for setting user context after authentication
+
+	// UserKey is the key used to store the user in context.Context.
+	// If nil, user is not stored in context (backward compatible).
+	UserKey any
+
+	// UserTransformer is an optional function to convert basicauth.User before storing in context.
+	// If nil, the basicauth.User is stored directly.
+	// The returned value is stored in context under UserKey.
+	UserTransformer func(c *gin.Context, user *User) any
 }
 
 type Handler struct {
@@ -112,6 +121,22 @@ func (h *Handler) destroySession(c *gin.Context) error {
 
 	session.Options.MaxAge = -1
 	return session.Save(c.Request, c.Writer)
+}
+
+// setUserInContext stores the user in the request context if UserKey is configured.
+// If UserTransformer is provided, the user is transformed before storing.
+func (h *Handler) setUserInContext(c *gin.Context, user *User) {
+	if h.Options.UserKey == nil {
+		return
+	}
+
+	var userToStore any = user
+	if h.Options.UserTransformer != nil {
+		userToStore = h.Options.UserTransformer(c, user)
+	}
+
+	ctx := context.WithValue(c.Request.Context(), h.Options.UserKey, userToStore)
+	c.Request = c.Request.WithContext(ctx)
 }
 
 func (h *Handler) getUserByIdentifier(identifier string) (*User, error) {
@@ -248,9 +273,7 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		return
 	}
 
-	if h.Options.UserContextProvider != nil {
-		h.Options.UserContextProvider.SetUserContext(c, user)
-	}
+	h.setUserInContext(c, user)
 
 	c.JSON(http.StatusCreated, SuccessResponse{
 		Message: h.Options.Settings.Messages.RegistrationSuccess,
@@ -294,9 +317,7 @@ func (h *Handler) handleLogin(c *gin.Context) {
 		return
 	}
 
-	if h.Options.UserContextProvider != nil {
-		h.Options.UserContextProvider.SetUserContext(c, user)
-	}
+	h.setUserInContext(c, user)
 
 	c.JSON(http.StatusOK, SuccessResponse{
 		Message: h.Options.Settings.Messages.LoginSuccess,
@@ -358,9 +379,7 @@ func (h *Handler) RequireAuth() gin.HandlerFunc {
 		c.Set("user", user)
 		c.Set("user_id", user.ID.String())
 
-		if h.Options.UserContextProvider != nil {
-			h.Options.UserContextProvider.SetUserContext(c, user)
-		}
+		h.setUserInContext(c, user)
 
 		c.Next()
 	}
