@@ -16,6 +16,7 @@ type Options struct {
 	AuthenticationBaseUrl string
 	Storage               Storage
 	Settings              *BasicAuthSettings
+	UserContextProvider   UserContextProvider // Optional, for setting user context after authentication
 }
 
 type Handler struct {
@@ -247,6 +248,10 @@ func (h *Handler) handleRegister(c *gin.Context) {
 		return
 	}
 
+	if h.Options.UserContextProvider != nil {
+		h.Options.UserContextProvider.SetUserContext(c, user)
+	}
+
 	c.JSON(http.StatusCreated, SuccessResponse{
 		Message: h.Options.Settings.Messages.RegistrationSuccess,
 		Data:    ToUserResponse(user),
@@ -287,6 +292,10 @@ func (h *Handler) handleLogin(c *gin.Context) {
 			Message: h.Options.Settings.Messages.InternalError,
 		})
 		return
+	}
+
+	if h.Options.UserContextProvider != nil {
+		h.Options.UserContextProvider.SetUserContext(c, user)
 	}
 
 	c.JSON(http.StatusOK, SuccessResponse{
@@ -348,6 +357,11 @@ func (h *Handler) RequireAuth() gin.HandlerFunc {
 
 		c.Set("user", user)
 		c.Set("user_id", user.ID.String())
+
+		if h.Options.UserContextProvider != nil {
+			h.Options.UserContextProvider.SetUserContext(c, user)
+		}
+
 		c.Next()
 	}
 }
