@@ -403,3 +403,142 @@ func TestRequireAuth_BackwardCompatibilityWithPublicPaths(t *testing.T) {
 		})
 	}
 }
+
+func setupTestMiddlewareWithCustomBaseUrl(baseUrl string, publicPaths []PublicPath) (*Handler, *gin.Engine) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	storage := NewMemoryStorage()
+
+	settings := DefaultSettings()
+	secretKey, _ := GenerateSessionSecretKey()
+	encryptionKey, _ := GenerateSessionEncryptionKey()
+	settings.SessionSecretKey = secretKey
+	settings.SessionEncryptionKey = encryptionKey
+	settings.PublicPaths = publicPaths
+
+	handler, _ := NewHandler(&Options{
+		Engine:                r,
+		AuthenticationBaseUrl: baseUrl,
+		Storage:               storage,
+		Settings:              settings,
+	})
+
+	handler.RegisterRoutes()
+
+	return handler, r
+}
+
+func TestRequireAuth_CustomBaseUrl_AuthEndpoints(t *testing.T) {
+	customBaseUrl := "/api/v1/auth"
+	handler, r := setupTestMiddlewareWithCustomBaseUrl(customBaseUrl, []PublicPath{})
+
+	// Apply global middleware
+	r.Use(handler.RequireAuth())
+
+	// Add a protected endpoint
+	r.GET("/api/protected", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "protected"})
+	})
+
+	tests := []struct {
+		method       string
+		path         string
+		expectStatus int
+		description  string
+	}{
+		{"POST", "/api/v1/auth/register", 400, "register should be public (400 = reached handler, not 401)"},
+		{"POST", "/api/v1/auth/login", 400, "login should be public (400 = reached handler, not 401)"},
+		{"POST", "/api/v1/auth/logout", 401, "logout should be protected"},
+		{"GET", "/api/v1/auth/me", 401, "me should be protected"},
+		{"GET", "/api/protected", 401, "other endpoints should be protected by default"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != tt.expectStatus {
+				t.Errorf("expected status %d, got %d for %s %s", tt.expectStatus, w.Code, tt.method, tt.path)
+			}
+		})
+	}
+}
+
+func TestRequireAuth_CustomBaseUrl_WithPublicPaths(t *testing.T) {
+	customBaseUrl := "/custom/auth"
+	publicPaths := []PublicPath{
+		{Type: PublicPathPrefix, Path: "/public"},
+	}
+	handler, r := setupTestMiddlewareWithCustomBaseUrl(customBaseUrl, publicPaths)
+
+	// Apply global middleware
+	r.Use(handler.RequireAuth())
+
+	// Add endpoints
+	r.GET("/public/docs", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "docs"})
+	})
+	r.GET("/private/data", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "data"})
+	})
+
+	tests := []struct {
+		method       string
+		path         string
+		expectStatus int
+		description  string
+	}{
+		{"POST", "/custom/auth/register", 400, "register should be public with custom base url"},
+		{"POST", "/custom/auth/login", 400, "login should be public with custom base url"},
+		{"POST", "/custom/auth/logout", 401, "logout should be protected with custom base url"},
+		{"GET", "/custom/auth/me", 401, "me should be protected with custom base url"},
+		{"GET", "/public/docs", 200, "public paths should still work with custom base url"},
+		{"GET", "/private/data", 401, "private paths should still require auth with custom base url"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != tt.expectStatus {
+				t.Errorf("expected status %d, got %d for %s %s", tt.expectStatus, w.Code, tt.method, tt.path)
+			}
+		})
+	}
+}
+
+func TestRequireAuth_DefaultBaseUrl_AuthEndpoints(t *testing.T) {
+	// Test with empty base URL (should default to /auth)
+	handler, r := setupTestMiddlewareWithCustomBaseUrl("", []PublicPath{})
+
+	// Apply global middleware
+	r.Use(handler.RequireAuth())
+
+	tests := []struct {
+		method       string
+		path         string
+		expectStatus int
+		description  string
+	}{
+		{"POST", "/auth/register", 400, "register should be public with default base url"},
+		{"POST", "/auth/login", 400, "login should be public with default base url"},
+		{"POST", "/auth/logout", 401, "logout should be protected with default base url"},
+		{"GET", "/auth/me", 401, "me should be protected with default base url"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != tt.expectStatus {
+				t.Errorf("expected status %d, got %d for %s %s", tt.expectStatus, w.Code, tt.method, tt.path)
+			}
+		})
+	}
+}

@@ -230,10 +230,10 @@ func TestUserContext_StoredInRequireAuthMiddleware(t *testing.T) {
 		return user
 	}
 
-	handler, r := setupTestHandlerWithUserContext(testUserKey, transformer)
+	_, r := setupTestHandlerWithUserContext(testUserKey, transformer)
 
-	// Add a protected route
-	r.GET("/protected", handler.RequireAuth(), func(c *gin.Context) {
+	// Add a protected route (RequireAuth is applied globally by RegisterRoutes)
+	r.GET("/protected", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "protected"})
 	})
 
@@ -298,10 +298,10 @@ func TestUserContext_AccessibleInHandler(t *testing.T) {
 		}
 	}
 
-	handler, r := setupTestHandlerWithUserContext(testUserKey, transformer)
+	_, r := setupTestHandlerWithUserContext(testUserKey, transformer)
 
-	// Add a protected route that captures the user from context
-	r.GET("/protected", handler.RequireAuth(), func(c *gin.Context) {
+	// Add a protected route that captures the user from context (RequireAuth is applied globally)
+	r.GET("/protected", func(c *gin.Context) {
 		if u := c.Request.Context().Value(testUserKey); u != nil {
 			capturedUser = u.(*TransformedUser)
 		}
@@ -396,10 +396,10 @@ func TestUserContext_NotCalledOnUnauthenticatedRequest(t *testing.T) {
 		return user
 	}
 
-	handler, r := setupTestHandlerWithUserContext(testUserKey, transformer)
+	_, r := setupTestHandlerWithUserContext(testUserKey, transformer)
 
-	// Add a protected route
-	r.GET("/protected", handler.RequireAuth(), func(c *gin.Context) {
+	// Add a protected route (RequireAuth is applied globally by RegisterRoutes)
+	r.GET("/protected", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "protected"})
 	})
 
@@ -488,10 +488,10 @@ func TestUserContext_NilUserKeyDoesNotPanic(t *testing.T) {
 func TestUserContext_WithoutTransformer_StoresBasicAuthUser(t *testing.T) {
 	var capturedUser *User
 
-	handler, r := setupTestHandlerWithUserContext(testUserKey, nil) // No transformer
+	_, r := setupTestHandlerWithUserContext(testUserKey, nil) // No transformer
 
-	// Add a protected route that captures the user from context
-	r.GET("/protected", handler.RequireAuth(), func(c *gin.Context) {
+	// Add a protected route that captures the user from context (RequireAuth is applied globally)
+	r.GET("/protected", func(c *gin.Context) {
 		if u := c.Request.Context().Value(testUserKey); u != nil {
 			capturedUser = u.(*User)
 		}

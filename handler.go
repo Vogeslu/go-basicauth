@@ -78,12 +78,14 @@ func (h *Handler) RegisterRoutes() error {
 		baseUrl = "/auth"
 	}
 
+	h.Options.Engine.Use(h.RequireAuth())
+
 	authGroup := h.Options.Engine.Group(baseUrl)
 	{
 		authGroup.POST("/register", h.handleRegister)
 		authGroup.POST("/login", h.handleLogin)
 		authGroup.POST("/logout", h.handleLogout)
-		authGroup.GET("/me", h.RequireAuth(), h.handleMe)
+		authGroup.GET("/me", h.handleMe)
 	}
 
 	return nil
@@ -353,16 +355,43 @@ func (h *Handler) handleMe(c *gin.Context) {
 }
 
 func (h *Handler) RequireAuth() gin.HandlerFunc {
+	baseUrl := h.Options.AuthenticationBaseUrl
+	if baseUrl == "" {
+		baseUrl = "/auth"
+	}
+
+	// Auth endpoints with hardcoded access rules
+	publicAuthPaths := map[string]bool{
+		baseUrl + "/register": true,
+		baseUrl + "/login":    true,
+	}
+	protectedAuthPaths := map[string]bool{
+		baseUrl + "/logout": true,
+		baseUrl + "/me":     true,
+	}
+
 	return func(c *gin.Context) {
 		requestPath := c.Request.URL.Path
 
-		// Find the longest matching rule
-		matchedRule, found := h.findLongestMatchingRule(requestPath)
-
-		// If a rule matched and it's public, allow access
-		if found && matchedRule.Access == PathAccessPublic {
+		// Register and login are always public
+		if publicAuthPaths[requestPath] {
 			c.Next()
 			return
+		}
+
+		// Logout and me are always protected - skip to auth check below
+		if protectedAuthPaths[requestPath] {
+			// Fall through to authentication check
+		} else {
+			// For non-auth endpoints, check path rules
+			// Find the longest matching rule
+			matchedRule, found := h.findLongestMatchingRule(requestPath)
+
+			// If a rule matched and it's public, allow access
+			if found && matchedRule.Access == PathAccessPublic {
+				c.Next()
+				return
+			}
 		}
 
 		// If a rule matched and it's private, or no rule matched, require auth
