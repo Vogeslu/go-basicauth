@@ -377,7 +377,6 @@ func (h *Handler) RequireAuth() gin.HandlerFunc {
 		}
 
 		c.Set("user", user)
-		c.Set("user_id", user.ID.String())
 
 		h.setUserInContext(c, user)
 
